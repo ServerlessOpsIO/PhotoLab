@@ -1,0 +1,35 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3.9"
+
+[packages]
+common = {editable = true, path = "src/common"}
+aws-xray-sdk = "*"
+aws-lambda-powertools = "*"
+
+[dev-packages]
+cfn-lint = "*"
+flake8 = "*"
+genson = "*"
+jsonschema = "*"
+json2python-models = "*"
+#moto = {extras = ["all"], version = "*"}
+mypy = "*"
+#boto3-stubs = { extras = ["all" ], version = "*"}
+pylint = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-mock = "*"
+pytest-pylint = "*"
+tox = "*"
+
+[scripts]
+#install-lambda-functions = "pipenv install -r src/requirements.txt"
+test = "pytest --cov src --cov-report term-missing --cov-fail-under 95 tests/unit"
+flake8 = "flake8"
+lint = "pylint"
+

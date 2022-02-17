@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: PhotOps photo analysis service
+
+Parameters:
+  ServiceName:
+    Type: String
+    Description: "Name of service"
+    Default: "PhotoLab"
+
+  ServiceEnv:
+    Type: String
+    Description: "Name of deployment environment"
+    Default: "prime"
+
+  LogLevel:
+    Type: String
+    Description: "Log level for functions; used internally in code."
+    Default: 'INFO'
+    AllowedValues:
+      - 'DEBUG'
+      - 'INFO'
+      - 'WARNING'
+      - 'ERROR'
+      - 'CRITICAL'
+
+  # FIXME: integrate this into function.
+  XRayTracingEnabled:
+    Type: String
+    Description: "AWS X-RAY tracing enabled"
+    Default: 'Disabled'
+    AllowedValues:
+      - 'Enabled'
+      - 'Disabled'
+
+  XRayTracingMode:
+    Type: String
+    Description: "AWS XRay tracing mode"
+    Default: PassThrough
+    AllowedValues:
+      - Active
+      - PassThrough
+
+
+Mappings:
+  XRayTracingEnabled:
+    Enabled:
+      Enabled: "true"
+    Disabled:
+      Enabled: "false"
+
+Globals:
+  Function:
+    Environment:
+      Variables:
+        LOG_LEVEL:
+          Ref: LogLevel
+        POWERTOOLS_SERVICE_NAME: !Ref AWS::StackName
+        XRAY_TRACING_ENABLED:
+          Fn::FindInMap:
+            - XRayTracingEnabled
+            - Ref: XRayTracingEnabled
+            - Enabled
+    Tracing: !Ref XRayTracingMode
+
+
+Resources:
+  # For CloudWatch Alarms
+  CloudWatchTopic:
+    Type: AWS::SNS::Topic
