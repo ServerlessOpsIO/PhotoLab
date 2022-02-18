@@ -536,9 +536,9 @@ Resources:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_MEDIUM
         Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
-        EnvironmentVariables:
-          - Name: TEST_ASSET_BUCKET_PATH
-            Value: !Ref TestAssetBucketPath
+        #EnvironmentVariables:
+        #  - Name: TEST_ASSET_BUCKET_PATH
+        #    Value: !Ref TestAssetBucketPath
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Source:
         Type: CODEPIPELINE
