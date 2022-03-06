@@ -1,0 +1,100 @@
+Comment: Detect faces in photo
+StartAt: GetJpegItemEvent
+States:
+  GetJpegItemEvent:
+    Type: Task
+    Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+    Parameters:
+      Entries:
+        - Detail:
+            Key:
+              pk.$: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
+              sk: jpeg#v0
+            X_StepFunctionTaskToken.$: $$.Task.Token
+          DetailType: AWS::DynamoDB::GetItem
+          EventBusName: ${EventBusName}
+          Source: io.serverlessops.PhotoLab.DetectFaces
+    Next: HasJpegDdbData
+    ResultPath: $.Ddb
+  HasJpegDdbData:
+    Type: Choice
+    Choices:
+      - Variable: $.Ddb.Item
+        IsPresent: true
+        Next: HeadObject
+    Default: CreateJpegEvent
+  HeadObject:
+    Type: Task
+    Parameters:
+      Bucket.$: $.Ddb.Item.s3_bucket
+      Key.$: $.Ddb.Item.s3_object_key
+    Resource: arn:aws:states:::aws-sdk:s3:headObject
+    Next: HasJpegObject
+    Catch:
+      - ErrorEquals:
+          - States.TaskFailed
+        Next: CreateJpegObjectEvent
+        Comment: Fail on object not found
+        ResultPath: "$.S3HeadObject"
+    ResultPath: $.S3HeadObject
+  HasJpegObject:
+    Type: Choice
+    Choices:
+      - Variable: $.S3HeadObject.ETag
+        IsPresent: true
+        Next: IndexFaces
+    Default: Fail
+  IndexFaces:
+    Type: Task
+    Next: Map
+    Parameters:
+      CollectionId: default
+      DetectionAttributes:
+        - ALL
+      #ExternalImageId: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
+      Image:
+        S3Object:
+          Bucket.$: $.Ddb.Item.s3_bucket
+          Name.$: $.Ddb.Item.s3_object_key
+    Resource: arn:aws:states:::aws-sdk:rekognition:indexFaces
+    ResultPath: $.Faces
+  Fail:
+    Type: Fail
+  Map:
+    Type: Map
+    Iterator:
+      StartAt: Pass
+      States:
+        Pass:
+          Type: Pass
+          End: true
+    End: true
+    ItemsPath: $.Faces.FaceRecords
+  CreateJpegObjectEvent:
+    Type: Task
+    Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+    Parameters:
+      Entries:
+        - Detail:
+            s3_bucket.$: $.s3_bucket
+            s3_object_key.$: $.s3_object_key
+            X_StepFunctionTaskToken.$: $$.Task.Token
+          DetailType: PhotoOps::CreateJpeg::Invoke
+          EventBusName: ${EventBusName}
+          Source: io.serverlessops.PhotoLab.DetectFaces
+    ResultPath: "$.Ddb"
+    Next: HeadObject
+  CreateJpegEvent:
+    Type: Task
+    Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+    Parameters:
+      Entries:
+        - Detail:
+            s3_bucket.$: $.s3_bucket
+            s3_object_key.$: $.s3_object_key
+            X_StepFunctionTaskToken.$: $$.Task.Token
+          DetailType: PhotoOps::CreateJpeg::Invoke
+          EventBusName: ${EventBusName}
+          Source: io.serverlessops.PhotoLab.DetectFaces
+    ResultPath: "$.Ddb"
+    Next: GetJpegItemEvent

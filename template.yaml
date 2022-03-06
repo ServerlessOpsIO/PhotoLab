@@ -41,6 +41,21 @@ Parameters:
       - Active
       - PassThrough
 
+  PhotoOpsBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Name of PhotOps image S3 bucket
+    Default: /PhotoOpsAI/PhotoOps/prime/PhotoOpsBucketName
+
+  PhotoOpsEventBusArn:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Arn of the PhotoOps EventBus
+    Default: /PhotoOpsAI/PhotoOps/prime/EventBusArn
+
+  PhotoOpsEventBusName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Description: Name of the PhotoOps EventBus
+    Default: /PhotoOpsAI/PhotoOps/prime/EventBusName
+
 
 Mappings:
   XRayTracingEnabled:
@@ -68,3 +83,60 @@ Resources:
   # For CloudWatch Alarms
   CloudWatchTopic:
     Type: AWS::SNS::Topic
+
+
+  DetectFacesStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: src/state-machines/detect-faces.yaml
+      DefinitionSubstitutions:
+        EventBusName: !Ref PhotoOpsEventBusName
+      Tracing:
+        Enabled: true
+      Logging:
+        Level: ERROR
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt DetectFacesLogGroup.Arn
+      Policies:
+        - Statement:
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+            Resource:
+              - !Sub 'arn:aws:s3:::${PhotoOpsBucketName}'
+              - !Sub 'arn:aws:s3:::${PhotoOpsBucketName}/*'
+          - Effect: Allow
+            Action:
+              - "events:PutEvents"
+            Resource:
+              - !Ref PhotoOpsEventBusArn
+          - Effect: Allow
+            Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:DescribeLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !GetAtt DetectFacesLogGroup.Arn
+          - Effect: Allow
+            Action:
+              - rekognition:IndexFaces
+            Resource: '*'
+
+  DetectFacesLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/step-functions/${ServiceName}-${ServiceEnv}'
+      RetentionInDays: 7
