@@ -132,6 +132,8 @@ Resources:
               - !GetAtt DetectFacesLogGroup.Arn
           - Effect: Allow
             Action:
+              - rekognition:CreateCollection
+              - rekognition:DescribeCollection
               - rekognition:IndexFaces
             Resource: '*'
 

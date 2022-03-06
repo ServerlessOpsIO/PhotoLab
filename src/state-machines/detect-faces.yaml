@@ -1,4 +1,4 @@
-Comment: Detect faces in photo
+Comment: A description of my state machine
 StartAt: GetJpegItemEvent
 States:
   GetJpegItemEvent:
@@ -29,37 +29,47 @@ States:
       Bucket.$: $.Ddb.Item.s3_bucket
       Key.$: $.Ddb.Item.s3_object_key
     Resource: arn:aws:states:::aws-sdk:s3:headObject
-    Next: HasJpegObject
+    Next: DescribeCollection
     Catch:
       - ErrorEquals:
           - States.TaskFailed
         Next: CreateJpegObjectEvent
         Comment: Fail on object not found
-        ResultPath: "$.S3HeadObject"
-    ResultPath: $.S3HeadObject
-  HasJpegObject:
-    Type: Choice
-    Choices:
-      - Variable: $.S3HeadObject.ETag
-        IsPresent: true
-        Next: IndexFaces
-    Default: Fail
+        ResultPath: $.S3HeadObjectError
+    ResultPath: null
+  DescribeCollection:
+    Type: Task
+    Next: IndexFaces
+    Parameters:
+      CollectionId.$: $.s3_bucket
+    Resource: arn:aws:states:::aws-sdk:rekognition:describeCollection
+    ResultPath: null
+    Catch:
+      - ErrorEquals:
+          - States.TaskFailed
+        Comment: Collection does not exist
+        Next: CreateCollection
+        ResultPath: $.RekognitionDescribeCollectionError
+  CreateCollection:
+    Type: Task
+    Parameters:
+      CollectionId.$: $.s3_bucket
+    Resource: arn:aws:states:::aws-sdk:rekognition:createCollection
+    Next: DescribeCollection
+    ResultPath: null
   IndexFaces:
     Type: Task
     Next: Map
     Parameters:
-      CollectionId: default
+      CollectionId.$: $.s3_bucket
       DetectionAttributes:
         - ALL
-      #ExternalImageId: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
       Image:
         S3Object:
           Bucket.$: $.Ddb.Item.s3_bucket
           Name.$: $.Ddb.Item.s3_object_key
     Resource: arn:aws:states:::aws-sdk:rekognition:indexFaces
     ResultPath: $.Faces
-  Fail:
-    Type: Fail
   Map:
     Type: Map
     Iterator:
@@ -82,7 +92,7 @@ States:
           DetailType: PhotoOps::CreateJpeg::Invoke
           EventBusName: ${EventBusName}
           Source: io.serverlessops.PhotoLab.DetectFaces
-    ResultPath: "$.Ddb"
+    ResultPath: null
     Next: HeadObject
   CreateJpegEvent:
     Type: Task
@@ -96,5 +106,5 @@ States:
           DetailType: PhotoOps::CreateJpeg::Invoke
           EventBusName: ${EventBusName}
           Source: io.serverlessops.PhotoLab.DetectFaces
-    ResultPath: "$.Ddb"
+    ResultPath: null
     Next: GetJpegItemEvent
