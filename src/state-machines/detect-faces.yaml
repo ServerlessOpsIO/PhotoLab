@@ -43,7 +43,9 @@ States:
     Parameters:
       CollectionId.$: $.s3_bucket
     Resource: arn:aws:states:::aws-sdk:rekognition:describeCollection
-    ResultPath: null
+    ResultSelector:
+      CollectionKey.$: "States.Format('face#collection#{}', $$.Execution.Input.s3_bucket)"
+    ResultPath: $.RekognitionDescribeCollection
     Catch:
       - ErrorEquals:
           - States.TaskFailed
@@ -55,8 +57,8 @@ States:
     Parameters:
       CollectionId.$: $.s3_bucket
     Resource: arn:aws:states:::aws-sdk:rekognition:createCollection
-    Next: DescribeCollection
-    ResultPath: null
+    Next: CreateCollectionItemEvent
+    ResultPath: $.RekognitionCreateCollection
   IndexFaces:
     Type: Task
     Next: Map
@@ -108,3 +110,38 @@ States:
           Source: io.serverlessops.PhotoLab.DetectFaces
     ResultPath: null
     Next: GetJpegItemEvent
+  CreateCollectionItemEvent:
+    Type: Task
+    Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+    Parameters:
+      Entries:
+        - Detail:
+            Item:
+              pk.$: States.Format('face#collection#{}', $.s3_bucket)
+              sk.$: States.Format('face#collection#{}', $.s3_bucket)
+              collection_id.$: $.s3_bucket
+              collection_arn.$: $.RekognitionCreateCollection.CollectionArn
+            X_StepFunctionTaskToken.$: $$.Task.Token
+          DetailType: AWS::DynamoDB::PutItem
+          EventBusName: ${EventBusName}
+          Source: io.serverlessops.PhotoLab.DetectFaces
+    Next: DescribeCollection
+    ResultPath: null
+  PutFaceItemEvent:
+    Type: Task
+    Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+    Parameters:
+      Entries:
+        - Detail:
+            Item:
+              pk.$: States.Format('face#collection#{}', $.s3_bucket)
+              sk.$: States.Format('face#collection#{}', $.s3_bucket)
+              collection_id.$: $.s3_bucket
+              collection_arn.$: $.RekognitionCreateCollection.CollectionArn
+            X_StepFunctionTaskToken.$: $$.Task.Token
+          DetailType: AWS::DynamoDB::PutItem
+          EventBusName: ${EventBusName}
+          Source: io.serverlessops.PhotoLab.DetectFaces
+    Next: DescribeCollection
+    ResultPath: null
+
