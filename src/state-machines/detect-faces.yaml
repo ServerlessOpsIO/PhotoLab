@@ -110,7 +110,6 @@ States:
                           quality.$: $.FaceDetail.Quality
                           smile.$: $.FaceDetail.Smile
                           sunglasses.$: $.FaceDetail.Sunglasses
-                          collection_id.$: $.s3_bucket
                         X_StepFunctionTaskToken.$: $$.Task.Token
                       DetailType: AWS::DynamoDB::PutItem
                       EventBusName: ${EventBusName}
@@ -130,7 +129,6 @@ States:
                           sk.$: States.Format('face#{}', $.Face.FaceId)
                           face_id.$: $.Face.FaceId
                           image_id.$: $.Face.ImageId
-                          collection_id.$: $.s3_bucket
                         X_StepFunctionTaskToken.$: $$.Task.Token
                       DetailType: AWS::DynamoDB::PutItem
                       EventBusName: ${EventBusName}
