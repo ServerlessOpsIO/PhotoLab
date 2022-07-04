@@ -117,25 +117,8 @@ States:
       Entries:
         - Detail:
             Item:
-              pk.$: States.Format('face#collection#{}', $.s3_bucket)
-              sk.$: States.Format('face#collection#{}', $.s3_bucket)
-              collection_id.$: $.s3_bucket
-              collection_arn.$: $.RekognitionCreateCollection.CollectionArn
-            X_StepFunctionTaskToken.$: $$.Task.Token
-          DetailType: AWS::DynamoDB::PutItem
-          EventBusName: ${EventBusName}
-          Source: io.serverlessops.PhotoLab.DetectFaces
-    Next: DescribeCollection
-    ResultPath: null
-  PutFaceItemEvent:
-    Type: Task
-    Resource: arn:aws:states:::events:putEvents.waitForTaskToken
-    Parameters:
-      Entries:
-        - Detail:
-            Item:
-              pk.$: States.Format('face#collection#{}', $.s3_bucket)
-              sk.$: States.Format('face#collection#{}', $.s3_bucket)
+              pk.$: States.Format('collection#{}', $.s3_bucket)
+              sk.$: States.Format('collection#{}', $.s3_bucket)
               collection_id.$: $.s3_bucket
               collection_arn.$: $.RekognitionCreateCollection.CollectionArn
             X_StepFunctionTaskToken.$: $$.Task.Token
