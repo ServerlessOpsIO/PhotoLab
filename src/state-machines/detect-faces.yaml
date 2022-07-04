@@ -74,14 +74,71 @@ States:
     ResultPath: $.Faces
   Map:
     Type: Map
+    ItemsPath: "$.Faces.FaceRecords"
     Iterator:
-      StartAt: Pass
+      StartAt: Parallel
       States:
-        Pass:
-          Type: Pass
+        Parallel:
+          Type: Parallel
+          Branches:
+          - StartAt: PutFaceItemEvent
+            States:
+              PutFaceItemEvent:
+                Type: Task
+                Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+                Parameters:
+                  Entries:
+                    - Detail:
+                        Item:
+                          pk.$: States.Format('rekognition#face#{}', $.Face.FaceId)
+                          sk.$: States.Format('rekognition#face#{}', $.Face.FaceId)
+                          confidence.$: $.Face.Confidence
+                          face_id.$: $.Face.FaceId
+                          image_id.$: $.Face.ImageId
+                          age_range.$: $.FaceDetail.AgeRange
+                          beard.$: $.FaceDetail.Beard
+                          bounding_box.$: $.FaceDetail.BoundingBox
+                          confidence.$: $.FaceDetail.Confidence
+                          emotions.$: $.FaceDetail.Emotions
+                          eyeglasses.$: $.FaceDetail.Eyeglasses
+                          eyes_open.$: $.FaceDetail.EyesOpen
+                          gender.$: $.FaceDetail.Gender
+                          landmarks.$: $.FaceDetail.Landmarks
+                          mouth_open.$: $.FaceDetail.MouthOpen
+                          mustache.$: $.FaceDetail.Mustache
+                          pose.$: $.FaceDetail.Pose
+                          quality.$: $.FaceDetail.Quality
+                          smile.$: $.FaceDetail.Smile
+                          sunglasses.$: $.FaceDetail.Sunglasses
+                          collection_id.$: $.s3_bucket
+                        X_StepFunctionTaskToken.$: $$.Task.Token
+                      DetailType: AWS::DynamoDB::PutItem
+                      EventBusName: ${EventBusName}
+                      Source: io.serverlessops.PhotoLab.DetectFaces
+                ResultPath: null
+                End: true
+          - StartAt: PutImageFaceItemEvent
+            States:
+              PutImageFaceItemEvent:
+                Type: Task
+                Resource: arn:aws:states:::events:putEvents.waitForTaskToken
+                Parameters:
+                  Entries:
+                    - Detail:
+                        Item:
+                          pk.$: States.Format('rekognition#image#{}', $.Face.ImageId)
+                          sk.$: States.Format('face#{}', $.Face.FaceId)
+                          face_id.$: $.Face.FaceId
+                          image_id.$: $.Face.ImageId
+                          collection_id.$: $.s3_bucket
+                        X_StepFunctionTaskToken.$: $$.Task.Token
+                      DetailType: AWS::DynamoDB::PutItem
+                      EventBusName: ${EventBusName}
+                      Source: io.serverlessops.PhotoLab.DetectFaces
+                ResultPath: null
+                End: true
           End: true
     End: true
-    ItemsPath: $.Faces.FaceRecords
   CreateJpegObjectEvent:
     Type: Task
     Resource: arn:aws:states:::events:putEvents.waitForTaskToken
