@@ -74,7 +74,7 @@ States:
     ResultPath: $.Faces
   Map:
     Type: Map
-    ItemsPath: "$.Faces.FaceRecords"
+    ItemsPath: "$.Faces.FaceRecords"  # We ignore unindexed faces currently
     Iterator:
       StartAt: Parallel
       States:
