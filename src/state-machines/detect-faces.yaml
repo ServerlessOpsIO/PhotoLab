@@ -117,8 +117,8 @@ States:
       Entries:
         - Detail:
             Item:
-              pk.$: States.Format('collection#{}', $.s3_bucket)
-              sk.$: States.Format('collection#{}', $.s3_bucket)
+              pk.$: States.Format('rekognition#collection#{}', $.s3_bucket)
+              sk.$: States.Format('rekognition#collection#{}', $.s3_bucket)
               collection_id.$: $.s3_bucket
               collection_arn.$: $.RekognitionCreateCollection.CollectionArn
             X_StepFunctionTaskToken.$: $$.Task.Token
