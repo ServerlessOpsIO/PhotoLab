@@ -172,9 +172,9 @@ States:
       Entries:
         - Detail:
             Item:
-              pk.$: States.Format('rekognition#collection#{}', $.s3_bucket)
-              sk.$: States.Format('rekognition#collection#{}', $.s3_bucket)
-              collection_id.$: $.s3_bucket
+              pk.$: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
+              sk.$: States.Format('rekognition#v0')
+              collection_id.$: $.s3_bucket    # FIXME: I really need to get this from previous step in the flow.
               collection_arn.$: $.RekognitionCreateCollection.CollectionArn
             X_StepFunctionTaskToken.$: $$.Task.Token
           DetailType: AWS::DynamoDB::PutItem
