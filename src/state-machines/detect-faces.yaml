@@ -1,6 +1,14 @@
 Comment: A description of my state machine
-StartAt: GetJpegItemEvent
+StartAt: FormatVars
 States:
+  FormatVars:
+    Type: "Pass"
+    Next: "GetJpegItemEvent"
+    Parameters:
+      s3_bucket.$: "$.s3_bucket"
+      s3_object_key.$: "$.s3_object_key"
+      rekognition_collection_id.$: "$.s3_bucket"
+      image_pk.$: "States.Format('{}#{}', $.s3_bucket, $.s3_object_key)"
   GetJpegItemEvent:
     Type: Task
     Resource: arn:aws:states:::events:putEvents.waitForTaskToken
@@ -8,7 +16,7 @@ States:
       Entries:
         - Detail:
             Key:
-              pk.$: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
+              pk.$: $.image_pk
               sk: jpeg#v0
             X_StepFunctionTaskToken.$: $$.Task.Token
           DetailType: AWS::DynamoDB::GetItem
@@ -41,7 +49,7 @@ States:
     Type: Task
     Next: IndexFaces
     Parameters:
-      CollectionId.$: $.s3_bucket
+      CollectionId.$: $.rekognition_collection_id
     Resource: arn:aws:states:::aws-sdk:rekognition:describeCollection
     ResultPath: $.RekognitionDescribeCollection
     Catch:
@@ -53,7 +61,7 @@ States:
   CreateCollection:
     Type: Task
     Parameters:
-      CollectionId.$: $.s3_bucket
+      CollectionId.$: $.rekognition_collection_id
     Resource: arn:aws:states:::aws-sdk:rekognition:createCollection
     Next: DescribeCollection
     ResultPath: $.RekognitionCreateCollection
@@ -61,7 +69,7 @@ States:
     Type: Task
     Next: CreateCollectionItemEvent
     Parameters:
-      CollectionId.$: $.s3_bucket
+      CollectionId.$: $.rekognition_collection_id
       DetectionAttributes:
         - ALL
       Image:
@@ -77,7 +85,7 @@ States:
       Entries:
         - Detail:
             Item:
-              pk.$: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
+              pk.$: $.image_pk
               sk.$: States.Format('rekognition#v0')
               collection_id.$: $.s3_bucket    # FIXME: I really need to get this from previous step in the flow.
               collection_arn.$: $.RekognitionDescribeCollection.CollectionARN
@@ -91,8 +99,7 @@ States:
     Type: Map
     ItemsPath: "$.Faces.FaceRecords"  # We ignore unindexed faces currently
     Parameters:
-      s3_bucket.$: "$.s3_bucket"
-      s3_object_key.$: "$.s3_object_key"
+      image_pk.$: "$.image_pk"
       face_info.$: "$$.Map.Item.Value"
     Iterator:
       StartAt: PutFaceItemEvent
@@ -104,7 +111,7 @@ States:
             Entries:
               - Detail:
                   Item:
-                    pk.$: States.Format('{}#{}', $.s3_bucket, $.s3_object_key)
+                    pk.$: $.image_pk
                     sk.$: States.Format('face#{}', $.face_info.Face.FaceId)
                     confidence.$: $.face_info.Face.Confidence
                     face_id.$: $.face_info.Face.FaceId
